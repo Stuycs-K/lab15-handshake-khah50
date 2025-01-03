@@ -1,4 +1,7 @@
 #include "pipe_networking.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+
 //UPSTREAM = to the server / from the client
 //DOWNSTREAM = to the client / from the server
 /*=========================
@@ -11,11 +14,15 @@
   =========================*/
 int server_setup() {
   int from_client = 0;
+  mkfifo("wkp", 0666);
+  if(){
+
+  }
   return from_client;
 }
 
 /*=========================
-  server_handshake 
+  server_handshake
   args: int * to_client
 
   Performs the server side pipe 3 way handshake.
@@ -56,5 +63,3 @@ int server_connect(int from_client) {
   int to_client  = 0;
   return to_client;
 }
-
-
