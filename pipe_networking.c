@@ -13,11 +13,18 @@
   returns the file descriptor for the upstream pipe.
   =========================*/
 int server_setup() {
-  int from_client = 0;
-  mkfifo("wkp", 0666);
-  if(){
-
+  int from_client;
+  if(mkfifo(WKP, 0666)){
+    perror("fail WKP creation");
+    exit(1);
   }
+  from_client = open(WKP, O_RDONLY);
+  if(from_client == -1){
+    perror("fail open WKP");
+    exit(1);
+  }
+  remove(WKP);
+
   return from_client;
 }
 
@@ -31,7 +38,24 @@ int server_setup() {
   returns the file descriptor for the upstream pipe (see server setup).
   =========================*/
 int server_handshake(int *to_client) {
+  char clientPipe[HANDSHAKE_BUFFER_SIZE];
   int from_client;
+  int rand = rand();
+  int ack;
+
+  from_client = open(WKP, O_RDONLY);
+  read(from_client, clientPipe, HANDSHAKE_BUFFER_SIZE);
+  close(from_client);
+
+  *to_client = open(clientPipe, O_WRONLY);
+  write(*to_client, &rand, sizeof(rand));
+  read(from_client, &ack, sizeof(int));
+
+  if(ack != rand + 1){
+    perror("handshake failed, ack invalid");
+    exit(1);
+  }
+
   return from_client;
 }
 
