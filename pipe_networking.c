@@ -43,36 +43,61 @@ int server_handshake(int *to_client) {
   int random = rand();
   int ack;
 
+  printf("[server] creating WKP...\n");
+  if(mkfifo(WKP, 0666) == -1){
+    perror("fail WKP creation");
+    exit(1);
+  }
+  
   from_client = open(WKP, O_RDONLY);
   if(from_client == -1){
     perror("failed open wkp");
+    remove(WKP);
     exit(1);
   }
 
-  read(from_client, clientPipe, HANDSHAKE_BUFFER_SIZE);
-  close(from_client);
+  if(read(from_client, clientPipe, HANDSHAKE_BUFFER_SIZE) <= 0){
+    perror("failed to read pipe");
+    close(from_client);
+    remove(WKP);
+    exit(1);
+  }  
+  printf("[server] received pipe name: %s\n", clientPipe);
+  remove(WKP);
+  printf("[server] WKP removed\n");
 
   *to_client = open(clientPipe, O_WRONLY);
   if(*to_client == -1){
     perror("fail open client pipe");
+    close(from_client);
     exit(1);
   }
+  printf("[server] connected to client's pipe");
 
-  write(*to_client, &random, sizeof(random));
-  from_client = open(WKP, O_RDONLY);
-  if(from_client == -1){
-    perror("failed reopen wkp");
+  if(write(*to_client, &random, sizeof(random)) == -1){
+    perror("failed write synack");
+    close(from_client);
+    close(*to_client);
     exit(1);
   }
-
-  read(from_client, &ack, sizeof(int));
+  
+  if(read(from_client, &ack, sizeof(int)) == 0){
+    perror("failed to read ack");
+    close(from_client);
+    close(*to_client);
+    exit(1);    
+  }
 
   if(ack != random + 1){
     perror("handshake failed, ack invalid");
+    close(from_client);
+    close(*to_client);
     exit(1);
   }
 
+  printf("[server] handshake complete\n");
   close(from_client);
+
   return from_client;
 }
 
@@ -88,6 +113,18 @@ int server_handshake(int *to_client) {
   =========================*/
 int client_handshake(int *to_server) {
   int from_server;
+  char clientPipe[HANDSHAKE_BUFFER_SIZE];
+  int random = rand();
+  int ack;
+
+  sprintf(clientPipe, "%d", getpid());
+  printf("[client] creating pipe: %s..\n", clientPipe);
+  if(mkfifo(clientPipe, 0666) == -1){
+    perror("failed create pipe");
+    exit(1);
+  }
+
+
   return from_server;
 }
 
@@ -102,5 +139,16 @@ int client_handshake(int *to_server) {
   =========================*/
 int server_connect(int from_client) {
   int to_client  = 0;
+  char message[BUFFER_SIZE];
+
+  read(from_client, message, BUFFER_SIZE);
+  printf("Server received message: %s\n", message);
+  to_client = from_client;
+  strcpy(message, "hello");
+  write(to_client, message, strlen(message) + 1);
+
+  close(from_client);
+  close(to_client);
+  
   return to_client;
 }
