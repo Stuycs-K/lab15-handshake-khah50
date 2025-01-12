@@ -40,22 +40,39 @@ int server_setup() {
 int server_handshake(int *to_client) {
   char clientPipe[HANDSHAKE_BUFFER_SIZE];
   int from_client;
-  int rand = rand();
+  int random = rand();
   int ack;
 
   from_client = open(WKP, O_RDONLY);
+  if(from_client == -1){
+    perror("failed open wkp");
+    exit(1);
+  }
+
   read(from_client, clientPipe, HANDSHAKE_BUFFER_SIZE);
   close(from_client);
 
   *to_client = open(clientPipe, O_WRONLY);
-  write(*to_client, &rand, sizeof(rand));
+  if(*to_client == -1){
+    perror("fail open client pipe");
+    exit(1);
+  }
+
+  write(*to_client, &random, sizeof(random));
+  from_client = open(WKP, O_RDONLY);
+  if(from_client == -1){
+    perror("failed reopen wkp");
+    exit(1);
+  }
+
   read(from_client, &ack, sizeof(int));
 
-  if(ack != rand + 1){
+  if(ack != random + 1){
     perror("handshake failed, ack invalid");
     exit(1);
   }
 
+  close(from_client);
   return from_client;
 }
 
