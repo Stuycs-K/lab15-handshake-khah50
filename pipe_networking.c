@@ -14,7 +14,7 @@
   returns the file descriptor for the upstream pipe.
   =========================*/
 int server_setup() {
-  signal(SIGINT, cleanWKP);
+  signal(SIGINT, cleanWKP_Pipe);
   int from_client;
   if(mkfifo(WKP, 0666)){
     perror("fail WKP creation");
@@ -198,7 +198,6 @@ int server_connect(int from_client) {
     }
 
   message[bytesRead] = '\0'; 
-  printf("[server_connect] Received from client: %s\n", message);
   strcpy(message, "hello");
   int bytesWrite = write(from_client, message, strlen(message) + 1);
   if(bytesWrite <= 0){
@@ -206,13 +205,57 @@ int server_connect(int from_client) {
     close(from_client);
     return -1;
   }
-  printf("[server_connect] Sent to client: %s\n", message);
 
   return to_client;
 }
 
-void cleanWKP(){
+void cleanWKP_Pipe(){
   printf("[server] Cleaning up WKP...\n");
   remove(WKP);
   exit(0);
+}
+
+
+int server_handshake_half(int *to_client, int from_client){
+    char client_pipe[HANDSHAKE_BUFFER_SIZE];
+    int random = rand();
+    int ack;
+
+    if(read(from_client, client_pipe, HANDSHAKE_BUFFER_SIZE) <= 0){
+        perror("failed read pipe");
+        close(from_client);
+        return -1;
+    }
+    printf("[subserver] Received pipe: %s\n", client_pipe);
+
+    *to_client = open(client_pipe, O_WRONLY);
+    if(*to_client == -1){
+        perror("failed open pipe");
+        close(from_client);
+        return -1;
+    }
+
+    if(write(*to_client, &random, sizeof(random)) == -1){
+        perror("failed send synack");
+        close(from_client);
+        close(*to_client);
+        return -1;
+    }
+
+    if(read(from_client, &ack, sizeof(ack)) <= 0){
+        perror("fail read ack");
+        close(from_client);
+        close(*to_client);
+        return -1;
+    }
+
+    if(ack != random + 1){
+        perror("invalid ack");
+        close(from_client);
+        close(*to_client);
+        return -1;
+    }
+
+    printf("[subserver] Handshake complete\n");
+    return from_client;
 }

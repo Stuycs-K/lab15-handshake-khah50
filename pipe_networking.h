@@ -31,6 +31,7 @@ int server_connect(int from_client);
 //for forking server
 int server_setup();
 
-void cleanWKP();
+void cleanWKP_Pipe();
+int server_handshake_half(int *to_client, int from_client);
 
 #endif
